@@ -1,75 +1,45 @@
 package main
 
 import (
-	"net/http"
-	"strconv"
+	"context"
+	"fmt"
+	"log"
+	"time"
 
-	"github.com/labstack/echo/v4"
-	"github.com/labstack/echo/v4/middleware"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.mongodb.org/mongo-driver/mongo/readpref"
 )
-
-type (
-	user struct {
-		ID   int    `json:"id"`
-		Name string `json:"name"`
-	}
-)
-
-var (
-	users = map[int]*user{}
-	seq   = 1
-)
-
-//----------
-// Handlers
-//----------
-
-func createUser(c echo.Context) error {
-	u := &user{
-		ID: seq,
-	}
-	if err := c.Bind(u); err != nil {
-		return err
-	}
-	users[u.ID] = u
-	seq++
-	return c.JSON(http.StatusCreated, u)
-}
-
-func getUser(c echo.Context) error {
-	id, _ := strconv.Atoi(c.Param("id"))
-	return c.JSON(http.StatusOK, users[id])
-}
-
-func updateUser(c echo.Context) error {
-	u := new(user)
-	if err := c.Bind(u); err != nil {
-		return err
-	}
-	id, _ := strconv.Atoi(c.Param("id"))
-	users[id].Name = u.Name
-	return c.JSON(http.StatusOK, users[id])
-}
-
-func deleteUser(c echo.Context) error {
-	id, _ := strconv.Atoi(c.Param("id"))
-	delete(users, id)
-	return c.NoContent(http.StatusNoContent)
-}
 
 func main() {
-	e := echo.New()
 
-	// Middleware
-	e.Use(middleware.Logger())
-	e.Use(middleware.Recover())
+	// import "go.mongodb.org/mongo-driver/mongo"
 
-	// Routes
-	e.POST("/users", createUser)
-	e.GET("/users/:id", getUser)
-	e.PUT("/users/:id", updateUser)
-	e.DELETE("/users/:id", deleteUser)
+	// ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	// defer cancel()
+	// client, err := mongo.Connect(ctx, options.Client().ApplyURI(
+	//    "mongodb+srv://talentjaza:Monday12@shortener.rvf3k.mongodb.net/shortener?retryWrites=true&w=majority",
+	// ))
+	// if err != nil { log.Fatal(err) }
 
-	// Start server
-	e.Logger.Fatal(e.Start(":1323"))
+	client, err := mongo.NewClient(options.Client().ApplyURI("mongodb+srv://talentjaza:Monday12@shortener.rvf3k.mongodb.net/shortener?retryWrites=true&w=majority"))
+	if err != nil {
+		log.Fatal(err)
+	}
+	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
+	err = client.Connect(ctx)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer client.Disconnect(ctx)
+	err = client.Ping(ctx, readpref.Primary())
+	if err != nil {
+		log.Fatal(err)
+	}
+	databases, err := client.ListDatabaseNames(ctx, bson.M{})
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(databases)
 }
